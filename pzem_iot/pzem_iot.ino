@@ -54,6 +54,7 @@ typedef struct
   float current ;
   float energy ;
   uint8_t gas;
+  uint32_t money;
 } Data;
 Data data;
 
@@ -525,6 +526,38 @@ void reset_display(void)
   lcd.setCursor(0, 1);
   lcd.print("So tien :");
 
+  if (data.energy < ENERGY_LEVEL_1)
+  {
+    data.money = data.energy * MONEY_LEVEL_1    ;
+  }
+  else
+  {
+    if (data.energy < ENERGY_LEVEL_2 ) data.money = data.energy * MONEY_LEVEL_2   ;
+    else
+    {
+      if (data.energy < ENERGY_LEVEL_3 ) data.money = data.energy * MONEY_LEVEL_3 ;
+      else
+      {
+        if (data.energy < ENERGY_LEVEL_4 ) data.money = data.energy * MONEY_LEVEL_4 ;
+        else
+        {
+          if (data.energy < ENERGY_LEVEL_5 ) data.money = data.energy * MONEY_LEVEL_5 ;
+          else data.money = data.energy * MONEY_LEVEL_6 ;
+        }
+      }
+    }
+  }
+
+
+
+  char money[10];
+  sprintf(money, "%d", data.money);
+  lcd.setCursor(9, 1);
+  lcd.print(money);
+
+  lcd.setCursor(18, 1);
+  lcd.print("VND");
+
   lcd.setCursor(0, 2);
   lcd.print("SDT : ");
 
@@ -699,21 +732,19 @@ void reset_display(void)
 /********* ham canh bao ***********/
 void warning(void)
 {
-  if(status.warning == 0)
+  if (status.warning == 0)
   {
-    if(data.voltage > setting.volt || data.current > setting.current || data.gas > setting.gas) status.warning = 1;
+    if (data.voltage > setting.volt || data.current > setting.current || data.gas > setting.gas) status.warning = 1;
   }
-  if(status.warning == 1)
+  if (status.warning == 1)
   {
-    if(data.voltage > setting.volt)    sent_sms(mumber, "CANH BAO QUA DIEN AP");
-    if(data.current > setting.current) sent_sms(mumber, "CANH BAO QUA DONG");
-    if(data.gas     > setting.gas)     sent_sms(mumber, "CANH BAO VUOT NGUONG KHI GAS");
-
-    status.warning = 2;  
+    if (data.voltage > setting.volt)    sent_sms(mumber, "CANH BAO QUA DIEN AP");
+    if (data.current > setting.current) sent_sms(mumber, "CANH BAO QUA DONG");
+    if (data.gas     > setting.gas)     sent_sms(mumber, "CANH BAO VUOT NGUONG KHI GAS");
+    status.warning = 2;
   }
-  if(status.warning == 2)
+  if (status.warning == 2)
   {
-    if(data.voltage <= setting.volt && data.current <= setting.current && data.gas <= setting.gas) status.warning = 0;
+    if (data.voltage <= setting.volt && data.current <= setting.current && data.gas <= setting.gas) status.warning = 0;
   }
-   
 }
