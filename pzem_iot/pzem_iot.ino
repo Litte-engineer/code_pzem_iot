@@ -91,6 +91,7 @@ void setting_display(void);
 void update_status(void);
 void reset_display(void);
 void warning(void);
+void reset_energy(void);
 
 void setup() {
 
@@ -226,7 +227,9 @@ void read_firebase(void)
     Firebase.setString(firebaseData, path + "/power", (String)power);
 
     /***** so tien *****/
-
+    char money[10];
+    sprintf(money, "%d", data.money);
+    Firebase.setString(firebaseData, path + "/money", (String)money);
 
     count.old_tran = count.tran;
   }
@@ -567,6 +570,11 @@ void reset_display(void)
     lcd.print(telephone_mum[i]);
   }
 
+  if (status.bnt_tb1 != status.old_bnt_tb1)
+  {
+    reset_energy();
+    status.old_bnt_tb1 = status.bnt_tb1;
+  }
 
   if (status.bnt_tb3 != status.old_bnt_tb3)
   {
@@ -727,6 +735,11 @@ void reset_display(void)
       status.old_bnt_tb4 = status.bnt_tb4;
     }
   }
+}
+/******* ham reset so dien ******/
+void reset_energy(void)
+{
+  pzem.resetEnergy();
 }
 
 /********* ham canh bao ***********/
