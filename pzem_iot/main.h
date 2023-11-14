@@ -3,11 +3,17 @@
 
 #include<WiFi.h>
 #include <FirebaseESP32.h>
-#include <Wire.h> 
+#include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-#include <stdio.h> 
+#include <stdio.h>
 #include <EEPROM.h>
 #include <PZEM004Tv30.h>
+#include <Arduino.h>
+#include <SoftwareSerial.h>
+
+#define SIM_TX 18
+#define SIM_RX 19
+SoftwareSerial sim;
 
 #define PZEM_RX_PIN 16
 #define PZEM_TX_PIN 17
@@ -17,6 +23,7 @@ PZEM004Tv30 pzem(PZEM_SERIAL, PZEM_RX_PIN, PZEM_TX_PIN);
 #define ADD_VOLT        0
 #define ADD_CURRENT     10
 #define ADD_GAS        20
+#define ADD_MUM         30
 
 
 #define pzemt        Serial2
@@ -72,7 +79,7 @@ FirebaseData firebaseData;
 WiFiClient client;
 String  path = "/";
 FirebaseJson json;
-LiquidCrystal_I2C lcd(0x27,20,4);
+LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 
 
@@ -96,6 +103,53 @@ String EEPROM_get(int add)
     sdt += (String)c;
   }
   return sdt;
+}
+
+
+void sim_at_wait()
+{
+  delay(100);
+  if (sim.available())
+  {
+    Serial.println(sim.readString());
+  }
+}
+bool sim_at_cmd(String cmd)
+{
+  sim.println(cmd);
+  delay(500);
+  //sim_at_wait();
+}
+bool sim_at_send(char c) {
+  sim.write(c);
+}
+
+
+void sent_sms(String mumber, String mess)
+{
+  String num = (String)mumber[1] + (String)mumber[2] + (String)mumber[3]
+               + (String)mumber[4] + (String)mumber[5] + (String)mumber[6] + (String)mumber[7]
+               + (String)mumber[8] + (String)mumber[9];
+  Serial.println(num);
+  String com = "+84" + (String)num;
+  Serial.println(com);
+  sim_at_cmd("AT+CMGF=1");
+  String temp = "AT+CMGS=\"";
+  temp += (String)com;
+  temp += "\"";
+  sim_at_cmd(temp);
+  sim_at_cmd(mess);
+  sim_at_send(0x1A);
+  delay(1000);
+}
+
+void sim_init(void)
+{
+  sim_at_cmd("AT");
+  sim_at_cmd("ATI");
+  sim_at_cmd("AT+CPIN?");
+  sim_at_cmd("AT+CSQ");
+  sim_at_cmd("AT+CIMI");
 }
 
 

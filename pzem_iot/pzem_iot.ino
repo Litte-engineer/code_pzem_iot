@@ -1,4 +1,4 @@
- #include "main.h"
+#include "main.h"
 const char* ssid = "KS Chuong"; //Enter SSID
 const char* password = "0946627518"; //Enter Password
 
@@ -6,6 +6,8 @@ const char* password = "0946627518"; //Enter Password
 
 uint32_t time_millis;
 uint32_t time_tran;
+String mumber = "";
+uint8_t telephone_mum [10];
 
 typedef struct
 {
@@ -39,6 +41,8 @@ typedef struct
   uint8_t update;
 
   uint8_t cursor;
+
+  uint8_t cursor_mum;
 } Status;
 Status status;
 
@@ -47,7 +51,7 @@ typedef struct
   float voltage ;
   float current ;
   float energy ;
-  float gas;
+  uint8_t gas;
 } Data;
 Data data;
 
@@ -82,25 +86,27 @@ void setting_mode(void);
 void run_display(void);
 void setting_display(void);
 void update_status(void);
-
-
-
+void reset_display(void);
 
 void setup() {
-  // put your setup code here, to run once:
+
   Serial.begin(115200);
   WiFi.begin(ssid, password);
   EEPROM.begin(512);
+  sim.begin(115200, SWSERIAL_8N1, SIM_RX, SIM_TX, false, 256);
+  sim_init();
+
+
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
-    Serial.print("*");
+    Serial.println("*");
   }
 
   Serial.println("");
   Serial.println("WiFi connection Successful");
   Serial.print("The IP Address of ESP32 Module is: ");
-  Serial.print(WiFi.localIP());// Print the IP address*/
+  Serial.print(WiFi.localIP());
 
   lcd.init();
   lcd.backlight();
@@ -116,14 +122,13 @@ void setup() {
   pinMode(TB3, INPUT_PULLUP);
   pinMode(TB4, INPUT_PULLUP);
   pinMode(UP, INPUT_PULLUP);
-  //pinMode(DOWN, INPUT_PULLUP);
   pinMode(DO, INPUT_PULLUP);
 
 
   Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
   read_bnt();
   update_status();
-  Serial.println(status.old_bnt_up);
+  
 
   String vol = EEPROM_get(ADD_VOLT);
   setting.volt = vol.toInt();
@@ -134,13 +139,17 @@ void setup() {
   String gas = EEPROM_get(ADD_GAS);
   setting.gas = gas.toInt();
 
+  mumber = EEPROM_get(ADD_MUM);
+  Serial.println(mumber);
+  sent_sms(mumber, "KHOI DONG HE THONG");
+
 
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
   read_bnt();
-
+  Serial.println(data.gas);
   if (status.mode == 0)
   {
     run_display();
@@ -148,10 +157,14 @@ void loop() {
     run_mode();
     read_firebase();
   }
-  else
+  else if (status.mode == 1)
   {
     setting_display();
     setting_mode();
+  }
+  else if (status.mode == 2)
+  {
+    reset_display();
   }
 }
 
@@ -159,67 +172,43 @@ void loop() {
 /**** ham doc du lieu firebase ****/
 void read_firebase(void)
 {
-  if (millis() - time_tran > 3000)
+  if (millis() - time_tran > 500)
   {
     count.tran ++;
     time_tran = millis();
   }
   if (count.tran != count.old_tran)
   {
+
     if (Firebase.getString(firebaseData, path + "/TB1"))
     {
       String data_tb1 = firebaseData.stringData();
-      //Serial.print("thiet bi 1 :");
-      //Serial.print(data_tb1[3]);
       if (data_tb1[3] == 'N') status.tb1 = 1;
       else if (data_tb1[3] == 'F') status.tb1 = 0;
-      //Serial.print(status.bnt_tb1);
-      //Serial.println(status.tb1);
     }
     if (Firebase.getString(firebaseData, path + "/TB2"))
     {
-      //Serial.print("thiet bi 2 :");
       String data_tb2 = firebaseData.stringData();
-      //Serial.print(data_tb2[3]);
-      if (data_tb2[3] == 'N')
-      {
-        status.tb2 = 1;
-      }
-      else status.tb2 = 0;
-      //Serial.print(status.bnt_tb2);
-      //Serial.println(status.tb2);
+      if (data_tb2[3] == 'N') status.tb2 = 1;
+      else if (data_tb2[3] == 'F') status.tb2 = 0;
     }
     if (Firebase.getString(firebaseData, path + "/TB3"))
     {
-      //Serial.print("thiet bi 3 :");
       String data_tb3 = firebaseData.stringData();
-      //Serial.print(data_tb3[3]);
-      if (data_tb3[3] == 'N')
-      {
-        status.tb3 = 1;
-      }
-      else status.tb3 = 0;
-      //Serial.print(status.bnt_tb3);
-      //Serial.println(status.tb3);
+      if (data_tb3[3] == 'N') status.tb3 = 1;
+      else if (data_tb3[3] == 'F') status.tb3 = 0;
     }
     if (Firebase.getString(firebaseData, path + "/TB4"))
     {
-      //Serial.print("thiet bi 4 :");
       String data_tb4 = firebaseData.stringData();
-      //Serial.print(data_tb4[3]);
-      if (data_tb4[3] == 'N')
-      {
-        status.tb4 = 1;
-      }
-      else status.tb4 = 0;
-      //Serial.print(status.bnt_tb4);
-      //Serial.println(status.tb4);
+      if (data_tb4[3] == 'N') status.tb4 = 1;
+      else if (data_tb4[3] == 'F') status.tb4 = 0;
     }
 
     /**** gui dien dap ****/
     char vol[7];
     sprintf(vol, "%0.2f", data.voltage);
-    Firebase.setString(firebaseData, path + "/vol", (String)vol);
+     Firebase.setString(firebaseData, path + "/vol", (String)vol);
 
     /**** gui dong dien *****/
     char current[7];
@@ -230,7 +219,10 @@ void read_firebase(void)
     char power[7];
     sprintf(power, "%0.2f", data.energy);
     Firebase.setString(firebaseData, path + "/power", (String)power);
-    
+
+    /***** so tien *****/
+
+
     count.old_tran = count.tran;
   }
 }
@@ -265,19 +257,7 @@ void read_bnt(void)
   status.bnt_tb2  = READ_TB2;
   status.bnt_tb3  = READ_TB3;
   status.bnt_tb4  = READ_TB4;
-  //Serial.print("up:");
-  //Serial.println(status.bnt_up);
-  //Serial.print("old up:");
-  //Serial.println(status.old_bnt_up);
-
-  //Serial.print("tb1:");
-  //Serial.println(status.bnt_tb1);
-
-  //Serial.print("tb2:");
-  //Serial.println(status.bnt_tb2);
-
-  //Serial.print("tb3:");
-  //Serial.println(status.bnt_tb3);
+  data.gas        = (READ_AO - 3095)/10;
 
 }
 /************ che do hoat dong ***************/
@@ -326,7 +306,6 @@ void run_mode(void)
     else Firebase.setString(firebaseData, path + "/TB4", "OFF");
     status.old_bnt_tb4 = status.bnt_tb4;
   }
-
 }
 /************** che do cai dat ****************/
 void setting_mode(void)
@@ -336,14 +315,20 @@ void setting_mode(void)
     if (status.bnt_up != status.old_bnt_up)
     {
       lcd.clear();
-      status.update = 0;
+      status.update = 2;
       status.old_bnt_up = status.bnt_up;
 
       EEPROM_put(ADD_VOLT, (String)setting.volt);
       EEPROM_put(ADD_CURRENT, (String)setting.current);
       EEPROM_put(ADD_GAS, (String)setting.gas);
 
-      status.mode = 0;
+      for (int i = 0; i < 10 ; i++)
+      {
+        String num = (String)mumber[i];
+        telephone_mum[i] = num.toInt();
+      }
+      Serial.println(mumber);
+      status.mode = 2;
     }
   }
 
@@ -353,7 +338,7 @@ void run_display(void)
 {
   lcd.setCursor(0, 0);
   lcd.print("Dien ap   : ");
-  
+
   data.voltage = pzem.voltage();
   lcd.setCursor(11, 0);
   lcd.print(data.voltage);
@@ -502,4 +487,208 @@ void setting_display(void)
 
   lcd.setCursor(19, 3);
   lcd.print("%");
+}
+
+/*********** man hinh reset ***********/
+void reset_display(void)
+{
+  if (status.update == 2)
+  {
+    if (status.bnt_up != status.old_bnt_up)
+    {
+      lcd.clear();
+      status.update = 0;
+      status.old_bnt_up = status.bnt_up;
+      mumber = "";
+      mumber = (String)telephone_mum[0] + (String)telephone_mum[1] + (String)telephone_mum[2] + (String)telephone_mum[3]
+               + (String)telephone_mum[4] + (String)telephone_mum[5] + (String)telephone_mum[6] + (String)telephone_mum[7]
+               + (String)telephone_mum[8] + (String)telephone_mum[9];
+      Serial.println(mumber);
+      EEPROM_put(ADD_MUM, mumber);
+      status.mode = 0;
+      status.cursor_mum = 0;
+    }
+  }
+  lcd.setCursor(0, 0);
+  lcd.print("Khi gas : ");
+  char gas[3];
+  sprintf(gas,"%03d", data.gas);
+  lcd.setCursor(11, 0);
+  lcd.print(gas);
+  lcd.setCursor(15, 0);
+  lcd.print("%");
+
+  lcd.setCursor(0, 1);
+  lcd.print("So tien :");
+
+  lcd.setCursor(0, 2);
+  lcd.print("SDT : ");
+
+  for (int i = 0; i < 10; i++)
+  {
+    lcd.setCursor(6 + i, 2);
+    lcd.print(telephone_mum[i]);
+  }
+
+
+  if (status.bnt_tb3 != status.old_bnt_tb3)
+  {
+    status.cursor_mum ++;
+    if (status.cursor_mum > 10) status.cursor_mum  = 0;
+    status.old_bnt_tb3 = status.bnt_tb3;
+  }
+
+  if (status.cursor_mum == 1)
+  {
+    lcd.setCursor(6, 2);
+    lcd.print(telephone_mum[0]);
+    delay(100);
+    lcd.setCursor(6, 2);
+    lcd.print(" ");
+    delay(100);
+
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[0]++;
+      if (telephone_mum[0] > 9) telephone_mum[0] = 0;
+      status.old_bnt_tb4 = status.bnt_tb4;
+    }
+  }
+
+  else if (status.cursor_mum == 2)
+  {
+    lcd.setCursor(7, 2);
+    lcd.print(telephone_mum[1]);
+    delay(100);
+    lcd.setCursor(7, 2);
+    lcd.print(" ");
+    delay(100);
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[1]++;
+      if (telephone_mum[1] > 9) telephone_mum[1] = 0;
+      status.old_bnt_tb4 = status.bnt_tb4;
+    }
+  }
+  else if (status.cursor_mum == 3)
+  {
+    lcd.setCursor(8, 2);
+    lcd.print(telephone_mum[2]);
+    delay(100);
+    lcd.setCursor(8, 2);
+    lcd.print(" ");
+    delay(100);
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[2]++;
+      if (telephone_mum[2] > 9) telephone_mum[2] = 0;
+      status.old_bnt_tb4 = status.bnt_tb4;
+    }
+  }
+  else if (status.cursor_mum == 4)
+  {
+    lcd.setCursor(9, 2);
+    lcd.print(telephone_mum[3]);
+    delay(100);
+    lcd.setCursor(9, 2);
+    lcd.print(" ");
+    delay(100);
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[3]++;
+      if (telephone_mum[3] > 9) telephone_mum[3] = 0;
+      status.old_bnt_tb4 = status.bnt_tb4;
+    }
+  }
+  else if (status.cursor_mum == 5)
+  {
+    lcd.setCursor(10, 2);
+    lcd.print(telephone_mum[4]);
+    delay(100);
+    lcd.setCursor(10, 2);
+    lcd.print(" ");
+    delay(100);
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[4]++;
+      if (telephone_mum[4] > 9) telephone_mum[4] = 0;
+      status.old_bnt_tb4 = status.bnt_tb4;
+    }
+  }
+  else if (status.cursor_mum == 6)
+  {
+    lcd.setCursor(11, 2);
+    lcd.print(telephone_mum[5]);
+    delay(100);
+    lcd.setCursor(11, 2);
+    lcd.print(" ");
+    delay(100);
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[5]++;
+      if (telephone_mum[5] > 9) telephone_mum[5] = 0;
+      status.old_bnt_tb4 = status.bnt_tb4;
+    }
+  }
+  else if (status.cursor_mum == 7)
+  {
+    lcd.setCursor(12, 2);
+    lcd.print(telephone_mum[6]);
+    delay(100);
+    lcd.setCursor(12, 2);
+    lcd.print(" ");
+    delay(100);
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[6]++;
+      if (telephone_mum[6] > 9) telephone_mum[6] = 0;
+      status.old_bnt_tb4 = status.bnt_tb4;
+    }
+  }
+  else if (status.cursor_mum == 8)
+  {
+    lcd.setCursor(13, 2);
+    lcd.print(telephone_mum[7]);
+    delay(100);
+    lcd.setCursor(13, 2);
+    lcd.print(" ");
+    delay(100);
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[7]++;
+      if (telephone_mum[7] > 9) telephone_mum[7] = 0;
+      status.old_bnt_tb4 = status.bnt_tb4;
+    }
+  }
+  else if (status.cursor_mum == 9)
+  {
+    lcd.setCursor(14, 2);
+    lcd.print(telephone_mum[8]);
+    delay(100);
+    lcd.setCursor(14, 2);
+    lcd.print(" ");
+    delay(100);
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[8]++;
+      if (telephone_mum[8] > 9) telephone_mum[8] = 0;
+      status.old_bnt_tb4 = status.bnt_tb4;
+    }
+  }
+  else if (status.cursor_mum == 10)
+  {
+    lcd.setCursor(15, 2);
+    lcd.print(telephone_mum[9]);
+    delay(100);
+    lcd.setCursor(15, 2);
+    lcd.print(" ");
+    delay(100);
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[9]++;
+      if (telephone_mum[9] > 9) telephone_mum[9] = 0;
+      status.old_bnt_tb4 = status.bnt_tb4;
+    }
+  }
+
 }
