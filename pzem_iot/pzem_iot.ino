@@ -43,6 +43,8 @@ typedef struct
   uint8_t cursor;
 
   uint8_t cursor_mum;
+
+  uint8_t warning;
 } Status;
 Status status;
 
@@ -87,6 +89,7 @@ void run_display(void);
 void setting_display(void);
 void update_status(void);
 void reset_display(void);
+void warning(void);
 
 void setup() {
 
@@ -128,7 +131,7 @@ void setup() {
   Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
   read_bnt();
   update_status();
-  
+
 
   String vol = EEPROM_get(ADD_VOLT);
   setting.volt = vol.toInt();
@@ -155,6 +158,7 @@ void loop() {
     run_display();
     control();
     run_mode();
+    warning();
     read_firebase();
   }
   else if (status.mode == 1)
@@ -208,7 +212,7 @@ void read_firebase(void)
     /**** gui dien dap ****/
     char vol[7];
     sprintf(vol, "%0.2f", data.voltage);
-     Firebase.setString(firebaseData, path + "/vol", (String)vol);
+    Firebase.setString(firebaseData, path + "/vol", (String)vol);
 
     /**** gui dong dien *****/
     char current[7];
@@ -257,7 +261,7 @@ void read_bnt(void)
   status.bnt_tb2  = READ_TB2;
   status.bnt_tb3  = READ_TB3;
   status.bnt_tb4  = READ_TB4;
-  data.gas        = (READ_AO - 3095)/10;
+  data.gas        = (READ_AO - 3095) / 10;
 
 }
 /************ che do hoat dong ***************/
@@ -512,7 +516,7 @@ void reset_display(void)
   lcd.setCursor(0, 0);
   lcd.print("Khi gas : ");
   char gas[3];
-  sprintf(gas,"%03d", data.gas);
+  sprintf(gas, "%03d", data.gas);
   lcd.setCursor(11, 0);
   lcd.print(gas);
   lcd.setCursor(15, 0);
@@ -690,5 +694,26 @@ void reset_display(void)
       status.old_bnt_tb4 = status.bnt_tb4;
     }
   }
+}
 
+/********* ham canh bao ***********/
+void warning(void)
+{
+  if(status.warning == 0)
+  {
+    if(data.voltage > setting.volt || data.current > setting.current || data.gas > setting.gas) status.warning = 1;
+  }
+  if(status.warning == 1)
+  {
+    if(data.voltage > setting.volt)    sent_sms(mumber, "CANH BAO QUA DIEN AP");
+    if(data.current > setting.current) sent_sms(mumber, "CANH BAO QUA DONG");
+    if(data.gas     > setting.gas)     sent_sms(mumber, "CANH BAO VUOT NGUONG KHI GAS");
+
+    status.warning = 2;  
+  }
+  if(status.warning == 2)
+  {
+    if(data.voltage <= setting.volt && data.current <= setting.current && data.gas <= setting.gas) status.warning = 0;
+  }
+   
 }

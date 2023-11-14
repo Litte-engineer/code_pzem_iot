@@ -108,7 +108,7 @@ String EEPROM_get(int add)
 
 void sim_at_wait()
 {
-  delay(100);
+  delay(500);
   if (sim.available())
   {
     Serial.println(sim.readString());
