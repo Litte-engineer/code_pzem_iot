@@ -26,8 +26,8 @@ PZEM004Tv30 pzem(PZEM_SERIAL, PZEM_RX_PIN, PZEM_TX_PIN);
 #define ADD_MUM         30
 
 #define     MONEY_LEVEL_1      1678
-#define     MONEY _LEVEL_2     1734
-#define     MONEY _LEVEL_3     2014
+#define     MONEY_LEVEL_2     1734
+#define     MONEY_LEVEL_3     2014
 #define     MONEY_LEVEL_4      2536
 #define     MONEY_LEVEL_5      2834
 #define     MONEY_LEVEL_6      2927
@@ -35,7 +35,7 @@ PZEM004Tv30 pzem(PZEM_SERIAL, PZEM_RX_PIN, PZEM_TX_PIN);
 #define    ENERGY_LEVEL_1      50
 #define    ENERGY_LEVEL_2      100
 #define    ENERGY_LEVEL_3      200
-#define    ENERGY _LEVEL_4     300
+#define    ENERGY_LEVEL_4      300
 #define    ENERGY_LEVEL_5      400
 
 #define pzemt        Serial2
@@ -120,7 +120,7 @@ String EEPROM_get(int add)
 
 void sim_at_wait()
 {
-  delay(500);
+  delay(200);
   if (sim.available())
   {
     Serial.println(sim.readString());
@@ -152,7 +152,7 @@ void sent_sms(String mumber, String mess)
   sim_at_cmd(temp);
   sim_at_cmd(mess);
   sim_at_send(0x1A);
-  delay(1000);
+  delay(3000);
 }
 
 void sim_init(void)

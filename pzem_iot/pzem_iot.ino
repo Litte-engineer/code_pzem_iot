@@ -96,12 +96,28 @@ void reset_energy(void);
 void setup() {
 
   Serial.begin(115200);
-  WiFi.begin(ssid, password);
-  EEPROM.begin(512);
+
+    
+  String vol = EEPROM_get(ADD_VOLT);
+  setting.volt = vol.toInt();
+
+  String cu = EEPROM_get(ADD_CURRENT);
+  setting.current = cu.toInt();
+
+  String gas = EEPROM_get(ADD_GAS);
+  setting.gas = gas.toInt();
+
+  mumber = EEPROM_get(ADD_MUM);
+  Serial.println(mumber);
+
   sim.begin(115200, SWSERIAL_8N1, SIM_RX, SIM_TX, false, 256);
+  delay(1000);
   sim_init();
+  sent_sms(mumber, "KHOI DONG HE THONG");
+  //sent_sms(mumber, "CANH BAO VUOT NGUONG KHI GAS");
+  //sent_sms(mumber, "CANH BAO QUA DIEN AP");
 
-
+  WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
@@ -135,18 +151,8 @@ void setup() {
   update_status();
 
 
-  String vol = EEPROM_get(ADD_VOLT);
-  setting.volt = vol.toInt();
 
-  String cu = EEPROM_get(ADD_CURRENT);
-  setting.current = cu.toInt();
 
-  String gas = EEPROM_get(ADD_GAS);
-  setting.gas = gas.toInt();
-
-  mumber = EEPROM_get(ADD_MUM);
-  Serial.println(mumber);
-  sent_sms(mumber, "KHOI DONG HE THONG");
 
 
 }
@@ -161,7 +167,10 @@ void loop() {
     control();
     run_mode();
     warning();
-    read_firebase();
+    if (status.warning == 0)
+    {
+      read_firebase();
+    }
   }
   else if (status.mode == 1)
   {
@@ -484,7 +493,7 @@ void setting_display(void)
   lcd.print(current);
 
   lcd.setCursor(19, 2);
-  lcd.print("A");
+  lcd.print("A  ");
 
   lcd.setCursor(1, 3);
   lcd.print("3. Gas      : ");
@@ -513,6 +522,7 @@ void reset_display(void)
                + (String)telephone_mum[8] + (String)telephone_mum[9];
       Serial.println(mumber);
       EEPROM_put(ADD_MUM, mumber);
+      lcd.clear();
       status.mode = 0;
       status.cursor_mum = 0;
     }
@@ -558,7 +568,7 @@ void reset_display(void)
   lcd.setCursor(9, 1);
   lcd.print(money);
 
-  lcd.setCursor(18, 1);
+  lcd.setCursor(17, 1);
   lcd.print("VND");
 
   lcd.setCursor(0, 2);
@@ -573,14 +583,19 @@ void reset_display(void)
   if (status.bnt_tb1 != status.old_bnt_tb1)
   {
     reset_energy();
+    lcd.clear();
+    lcd.setCursor(2, 0);
+    lcd.print("DA XOA TIEN DIEN");
+    delay(2000);
+    lcd.clear();
     status.old_bnt_tb1 = status.bnt_tb1;
   }
 
-  if (status.bnt_tb3 != status.old_bnt_tb3)
+  if (status.bnt_tb2 != status.old_bnt_tb2)
   {
     status.cursor_mum ++;
     if (status.cursor_mum > 10) status.cursor_mum  = 0;
-    status.old_bnt_tb3 = status.bnt_tb3;
+    status.old_bnt_tb2 = status.bnt_tb2;
   }
 
   if (status.cursor_mum == 1)
@@ -592,10 +607,16 @@ void reset_display(void)
     lcd.print(" ");
     delay(100);
 
-    if (status.bnt_tb4 != status.old_bnt_tb4)
+    if (status.bnt_tb3 != status.old_bnt_tb3)
     {
       telephone_mum[0]++;
       if (telephone_mum[0] > 9) telephone_mum[0] = 0;
+      status.old_bnt_tb3 = status.bnt_tb3;
+    }
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[0]--;
+      if (telephone_mum[0] < 0) telephone_mum[0] = 9;
       status.old_bnt_tb4 = status.bnt_tb4;
     }
   }
@@ -608,10 +629,16 @@ void reset_display(void)
     lcd.setCursor(7, 2);
     lcd.print(" ");
     delay(100);
-    if (status.bnt_tb4 != status.old_bnt_tb4)
+    if (status.bnt_tb3 != status.old_bnt_tb3)
     {
       telephone_mum[1]++;
       if (telephone_mum[1] > 9) telephone_mum[1] = 0;
+      status.old_bnt_tb3 = status.bnt_tb3;
+    }
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[1]--;
+      if (telephone_mum[1] < 0) telephone_mum[1] = 9;
       status.old_bnt_tb4 = status.bnt_tb4;
     }
   }
@@ -623,10 +650,16 @@ void reset_display(void)
     lcd.setCursor(8, 2);
     lcd.print(" ");
     delay(100);
-    if (status.bnt_tb4 != status.old_bnt_tb4)
+    if (status.bnt_tb3 != status.old_bnt_tb3)
     {
       telephone_mum[2]++;
       if (telephone_mum[2] > 9) telephone_mum[2] = 0;
+      status.old_bnt_tb3 = status.bnt_tb3;
+    }
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[2]--;
+      if (telephone_mum[2] < 0) telephone_mum[2] = 9;
       status.old_bnt_tb4 = status.bnt_tb4;
     }
   }
@@ -638,10 +671,16 @@ void reset_display(void)
     lcd.setCursor(9, 2);
     lcd.print(" ");
     delay(100);
-    if (status.bnt_tb4 != status.old_bnt_tb4)
+    if (status.bnt_tb3 != status.old_bnt_tb3)
     {
       telephone_mum[3]++;
       if (telephone_mum[3] > 9) telephone_mum[3] = 0;
+      status.old_bnt_tb3 = status.bnt_tb3;
+    }
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[3]--;
+      if (telephone_mum[3] < 0) telephone_mum[3] = 9;
       status.old_bnt_tb4 = status.bnt_tb4;
     }
   }
@@ -653,10 +692,16 @@ void reset_display(void)
     lcd.setCursor(10, 2);
     lcd.print(" ");
     delay(100);
-    if (status.bnt_tb4 != status.old_bnt_tb4)
+    if (status.bnt_tb3 != status.old_bnt_tb3)
     {
       telephone_mum[4]++;
       if (telephone_mum[4] > 9) telephone_mum[4] = 0;
+      status.old_bnt_tb3 = status.bnt_tb3;
+    }
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[4]--;
+      if (telephone_mum[4] < 0) telephone_mum[4] = 9;
       status.old_bnt_tb4 = status.bnt_tb4;
     }
   }
@@ -668,10 +713,16 @@ void reset_display(void)
     lcd.setCursor(11, 2);
     lcd.print(" ");
     delay(100);
-    if (status.bnt_tb4 != status.old_bnt_tb4)
+    if (status.bnt_tb3 != status.old_bnt_tb3)
     {
       telephone_mum[5]++;
       if (telephone_mum[5] > 9) telephone_mum[5] = 0;
+      status.old_bnt_tb3 = status.bnt_tb3;
+    }
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[5]--;
+      if (telephone_mum[5] < 0) telephone_mum[5] = 9;
       status.old_bnt_tb4 = status.bnt_tb4;
     }
   }
@@ -683,10 +734,16 @@ void reset_display(void)
     lcd.setCursor(12, 2);
     lcd.print(" ");
     delay(100);
-    if (status.bnt_tb4 != status.old_bnt_tb4)
+    if (status.bnt_tb3 != status.old_bnt_tb3)
     {
       telephone_mum[6]++;
       if (telephone_mum[6] > 9) telephone_mum[6] = 0;
+      status.old_bnt_tb3 = status.bnt_tb3;
+    }
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[6]--;
+      if (telephone_mum[6] < 0) telephone_mum[6] = 9;
       status.old_bnt_tb4 = status.bnt_tb4;
     }
   }
@@ -698,10 +755,16 @@ void reset_display(void)
     lcd.setCursor(13, 2);
     lcd.print(" ");
     delay(100);
-    if (status.bnt_tb4 != status.old_bnt_tb4)
+    if (status.bnt_tb3 != status.old_bnt_tb3)
     {
       telephone_mum[7]++;
       if (telephone_mum[7] > 9) telephone_mum[7] = 0;
+      status.old_bnt_tb3 = status.bnt_tb3;
+    }
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[7]--;
+      if (telephone_mum[7] < 0) telephone_mum[7] = 9;
       status.old_bnt_tb4 = status.bnt_tb4;
     }
   }
@@ -713,10 +776,16 @@ void reset_display(void)
     lcd.setCursor(14, 2);
     lcd.print(" ");
     delay(100);
-    if (status.bnt_tb4 != status.old_bnt_tb4)
+    if (status.bnt_tb3 != status.old_bnt_tb3)
     {
       telephone_mum[8]++;
       if (telephone_mum[8] > 9) telephone_mum[8] = 0;
+      status.old_bnt_tb3 = status.bnt_tb3;
+    }
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[8]--;
+      if (telephone_mum[8] < 0) telephone_mum[8] = 9;
       status.old_bnt_tb4 = status.bnt_tb4;
     }
   }
@@ -728,10 +797,16 @@ void reset_display(void)
     lcd.setCursor(15, 2);
     lcd.print(" ");
     delay(100);
-    if (status.bnt_tb4 != status.old_bnt_tb4)
+    if (status.bnt_tb3 != status.old_bnt_tb3)
     {
       telephone_mum[9]++;
       if (telephone_mum[9] > 9) telephone_mum[9] = 0;
+      status.old_bnt_tb3 = status.bnt_tb3;
+    }
+    if (status.bnt_tb4 != status.old_bnt_tb4)
+    {
+      telephone_mum[9]--;
+      if (telephone_mum[9] < 0) telephone_mum[9] = 9;
       status.old_bnt_tb4 = status.bnt_tb4;
     }
   }
@@ -740,6 +815,7 @@ void reset_display(void)
 void reset_energy(void)
 {
   pzem.resetEnergy();
+  data.energy = 0;
 }
 
 /********* ham canh bao ***********/
